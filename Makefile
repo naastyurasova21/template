@@ -1,3 +1,6 @@
+include .env
+export
+
 .PHONY: help generate migrate migrate-down run build tidy
 
 help:
@@ -16,10 +19,10 @@ generate:
 		contracts/openapi/trip-service.openapi.yaml
 
 migrate:
-	@echo "TODO: goose up"
+	go tool goose -dir migrations postgres "$(DATABASE_URL)" up
 
 migrate-down:
-	@echo "TODO: goose down"
+	go tool goose -dir migrations postgres "$(DATABASE_URL)" down
 
 build:
 	go build -o bin/trip-service ./cmd/trip-service
