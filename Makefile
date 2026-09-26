@@ -4,7 +4,7 @@ help:
 	@echo "make generate     - generate API code from OpenAPI"
 	@echo "make migrate      - apply migrations"
 	@echo "make migrate-down - rollback migrations"
-	@echo "make run          - run the service"
+	@echo "make run          - build and run the service"
 	@echo "make build        - build the binary"
 	@echo "make tidy         - go mod tidy"
 
@@ -17,11 +17,11 @@ migrate:
 migrate-down:
 	@echo "TODO: goose down"
 
-run:
-	@echo "TODO: go run ./cmd/trip-service"
-
 build:
-	go build ./...
+	go build -o bin/trip-service ./cmd/trip-service
+
+run: build
+	./bin/trip-service
 
 tidy:
 	go mod tidy
