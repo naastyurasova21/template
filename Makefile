@@ -9,7 +9,11 @@ help:
 	@echo "make tidy         - go mod tidy"
 
 generate:
-	@echo "TODO: oapi-codegen"
+	go tool oapi-codegen \
+		-generate types,chi-server \
+		-package api \
+		-o api/api.gen.go \
+		contracts/openapi/trip-service.openapi.yaml
 
 migrate:
 	@echo "TODO: goose up"
