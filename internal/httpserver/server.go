@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog" 
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -23,7 +23,7 @@ const (
 type Server struct {
 	httpServer *http.Server
 	pool       *pgxpool.Pool
-	logger     *slog.Logger 
+	logger     *slog.Logger
 }
 
 type HealthResponse struct {
@@ -49,7 +49,7 @@ func New(addr string, pool *pgxpool.Pool, logger *slog.Logger) *Server {
 	})
 
 	return &Server{
-		pool: pool,
+		pool:   pool,
 		logger: logger,
 		httpServer: &http.Server{
 			Addr:              addr,
@@ -63,7 +63,7 @@ func New(addr string, pool *pgxpool.Pool, logger *slog.Logger) *Server {
 }
 
 func (s *Server) Start() error {
-	s.logger.Info("http server starting", "addr", s.httpServer.Addr) 
+	s.logger.Info("http server starting", "addr", s.httpServer.Addr)
 	if err := s.httpServer.ListenAndServe(); err != nil &&
 		!errors.Is(err, http.ErrServerClosed) {
 		return err

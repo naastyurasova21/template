@@ -10,6 +10,8 @@ import (
 	"github.com/naastyurasova21/template/internal/config"
 	"github.com/naastyurasova21/template/internal/db"
 	"github.com/naastyurasova21/template/internal/httpserver"
+	"github.com/naastyurasova21/template/internal/repository"
+	"github.com/naastyurasova21/template/internal/txmanager"
 )
 
 func main() {
@@ -31,14 +33,15 @@ func main() {
 	}
 	defer pool.Close()
 	logger.Info("database connected")
-
+	tripRepo := repository.NewTripRepository(pool, cfg.DatabaseQueryTimeout)
+	txManager := txmanager.New(pool)
+	_, _ = tripRepo, txManager
 	srv := httpserver.New(cfg.HTTPAddr, pool, logger)
 
 	srvErr := make(chan error, 1)
 	go func() {
 		srvErr <- srv.Start()
 	}()
-
 
 	select {
 	case <-ctx.Done():

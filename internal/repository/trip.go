@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/naastyurasova21/template/api"
+	"github.com/naastyurasova21/template/internal/db"
 )
 
 const pgUniqueViolation = "23505"
@@ -33,15 +34,10 @@ func (r *TripRepository) Create(ctx context.Context, data api.TripData) (*api.Tr
 	ctx, cancel := context.WithTimeout(ctx, r.queryTimeout)
 	defer cancel()
 
+	exec := db.ExecutorFromContext(ctx, r.pool)
+
 	id := uuid.New()
 	now := time.Now().UTC()
-
-	// Ручная транзакция. В пункте 8 заменю на TxManager.Do.
-	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
 
 	insertTrip, argsTrip, err := sq.Insert("trips").
 		Columns(
@@ -64,7 +60,7 @@ func (r *TripRepository) Create(ctx context.Context, data api.TripData) (*api.Tr
 		return nil, fmt.Errorf("build insert trip: %w", err)
 	}
 
-	if _, err := tx.Exec(ctx, insertTrip, argsTrip...); err != nil {
+	if _, err := exec.Exec(ctx, insertTrip, argsTrip...); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
 			return nil, ErrDriverBusy
@@ -81,12 +77,8 @@ func (r *TripRepository) Create(ctx context.Context, data api.TripData) (*api.Tr
 		return nil, fmt.Errorf("build insert history: %w", err)
 	}
 
-	if _, err := tx.Exec(ctx, insertHistory, argsHistory...); err != nil {
+	if _, err := exec.Exec(ctx, insertHistory, argsHistory...); err != nil {
 		return nil, fmt.Errorf("insert history: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
 	return r.GetByID(ctx, id)
@@ -95,6 +87,8 @@ func (r *TripRepository) Create(ctx context.Context, data api.TripData) (*api.Tr
 func (r *TripRepository) GetByID(ctx context.Context, id uuid.UUID) (*api.Trip, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.queryTimeout)
 	defer cancel()
+
+	exec := db.ExecutorFromContext(ctx, r.pool)
 
 	sql, args, err := sq.Select(
 		"id", "user_id", "driver_id",
@@ -111,7 +105,7 @@ func (r *TripRepository) GetByID(ctx context.Context, id uuid.UUID) (*api.Trip, 
 		return nil, fmt.Errorf("build select trip: %w", err)
 	}
 
-	trip, err := scanTrip(r.pool.QueryRow(ctx, sql, args...))
+	trip, err := scanTrip(exec.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrTripNotFound
@@ -122,58 +116,50 @@ func (r *TripRepository) GetByID(ctx context.Context, id uuid.UUID) (*api.Trip, 
 }
 
 func (r *TripRepository) Finish(ctx context.Context, id uuid.UUID) (*api.Trip, error) {
-    ctx, cancel := context.WithTimeout(ctx, r.queryTimeout)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
 
-    now := time.Now().UTC()
+	exec := db.ExecutorFromContext(ctx, r.pool)
+	now := time.Now().UTC()
 
-    tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
-    if err != nil {
-        return nil, fmt.Errorf("begin tx: %w", err)
-    }
-    defer func() { _ = tx.Rollback(ctx) }()
+	// UPDATE trips
+	updateTrip, argsUpdate, err := sq.Update("trips").
+		Set("status", api.Completed).
+		Set("finished_at", now).
+		Set("updated_at", now).
+		Where(sq.Eq{"id": id, "status": api.Active}).
+		PlaceholderFormat(sq.Dollar).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build update trip: %w", err)
+	}
 
-    // UPDATE trips
-    updateTrip, argsUpdate, err := sq.Update("trips").
-        Set("status", api.Completed).
-        Set("finished_at", now).
-        Set("updated_at", now).
-        Where(sq.Eq{"id": id, "status": api.Active}).
-        PlaceholderFormat(sq.Dollar).
-        ToSql()
-    if err != nil {
-        return nil, fmt.Errorf("build update trip: %w", err)
-    }
+	res, err := exec.Exec(ctx, updateTrip, argsUpdate...)
+	if err != nil {
+		return nil, fmt.Errorf("update trip: %w", err)
+	}
 
-    res, err := tx.Exec(ctx, updateTrip, argsUpdate...)
-    if err != nil {
-        return nil, fmt.Errorf("update trip: %w", err)
-    }
+	if res.RowsAffected() == 0 {
+		// Либо поездки нет, либо уже завершена
+		if _, err := r.GetByID(ctx, id); err != nil {
+			return nil, err // ErrTripNotFound
+		}
+		return nil, ErrTripAlreadyCompleted
+	}
 
-    if res.RowsAffected() == 0 {
-        if _, err := r.GetByID(ctx, id); err != nil {
-            return nil, err // ErrTripNotFound
-        }
-        return nil, ErrTripAlreadyCompleted
-    }
+	// INSERT trip_status_history
+	insertHistory, argsHistory, err := sq.Insert("trip_status_history").
+		Columns("trip_id", "from_status", "to_status", "reason", "changed_at").
+		Values(id, api.Active, api.Completed, "trip finished", now).
+		PlaceholderFormat(sq.Dollar).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build insert history: %w", err)
+	}
 
-    // INSERT trip_status_history
-    insertHistory, argsHistory, err := sq.Insert("trip_status_history").
-        Columns("trip_id", "from_status", "to_status", "reason", "changed_at").
-        Values(id, api.Active, api.Completed, "trip finished", now).
-        PlaceholderFormat(sq.Dollar).
-        ToSql()
-    if err != nil {
-        return nil, fmt.Errorf("build insert history: %w", err)
-    }
+	if _, err := exec.Exec(ctx, insertHistory, argsHistory...); err != nil {
+		return nil, fmt.Errorf("insert history: %w", err)
+	}
 
-    if _, err := tx.Exec(ctx, insertHistory, argsHistory...); err != nil {
-        return nil, fmt.Errorf("insert history: %w", err)
-    }
-
-    if err := tx.Commit(ctx); err != nil {
-        return nil, fmt.Errorf("commit tx: %w", err)
-    }
-
-    return r.GetByID(ctx, id)
+	return r.GetByID(ctx, id)
 }
