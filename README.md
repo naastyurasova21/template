@@ -207,17 +207,34 @@ CREATE UNIQUE INDEX trips_driver_active_uidx
 **Обработка в коде:** при `INSERT` PostgreSQL возвращает `pgconn.PgError` с
 кодом `23505`. Репозиторий ловит его и возвращает `repository.ErrDriverBusy`.
 Handler мапит в HTTP `409` с `code: driver_busy`.
-
 **Проверено:** `seq 20 | xargs -P20` на одного водителя → ровно `1×201`, `19×409`.
+
+### Защита от конкурентного `finish`
+
+Завершение защищено **условным `UPDATE`**:
+
+```sql
+UPDATE trips
+SET status = 'completed', finished_at = now()
+WHERE id = $1 AND status = 'active';
+```
+
+Ключевое — `WHERE status = 'active'`: два параллельных `finish` не могут оба
+завершить поездку, второй получит `409 trip_completed`. 
 
 ### `problem+json` для ошибок парсинга параметров
 
-`oapi-codegen` по умолчанию возвращает `400 text/plain` при невалидном
-`tripId` (не UUID). Чтобы соблюсти требование задания (`application/problem+json`
-с `code: invalid_request`), в `api.ChiServerOptions` передан кастомный
-`ErrorHandlerFunc: handler.ErrorHandler`. Сгенерированный код при этом не
-правится.
+`oapi-codegen` по умолчанию возвращает `400 text/plain` с сырым текстом ошибки
+при невалидном `tripId` (не UUID). Чтобы соблюсти требование задания
+(`application/problem+json` с `code: invalid_request`), в `api.ChiServerOptions`
+передан кастомный `ErrorHandlerFunc: handler.ErrorHandler`. Сгенерированный код
+при этом не правится.
+`ErrorHandler` распознаёт `*api.InvalidParamFormatError` и возвращает **краткий читаемый** `detail` без внутренних деталей парсера:
 
+- для `tripId` → `"invalid UUID format"`;
+- для остальных параметров → `"invalid parameter format"`.
+
+Если ошибка другого типа — отдаётся общий `"invalid request parameters"`.
 ## Структура
 
 ```

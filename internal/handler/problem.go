@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/naastyurasova21/template/api"
@@ -13,9 +14,9 @@ var problemInfo = map[string]struct {
 }{
 	"invalid_request": {"Invalid request", "invalid-request"},
 	"trip_not_found":  {"Trip not found", "trip-not-found"},
-	"trip_completed":  {"Trip already completed", "trip-completed"},
+	"trip_completed":  {"Trip completed", "trip-completed"},
 	"driver_busy":     {"Driver busy", "driver-busy"},
-	"internal_error":  {"Internal error", "internal-error"},
+	"internal_error":  {"Internal Server Error", "internal-error"},
 	"not_implemented": {"Not implemented", "not-implemented"},
 }
 
@@ -43,10 +44,16 @@ func writeProblem(w http.ResponseWriter, r *http.Request, status int, code, deta
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(problem)
 }
+
 func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
-	detail := "invalid request parameters"
-	if err != nil {
-		detail = err.Error()
+	var paramErr *api.InvalidParamFormatError
+	if errors.As(err, &paramErr) {
+		detail := "invalid parameter format"
+		if paramErr.ParamName == "tripId" {
+			detail = "invalid UUID format"
+		}
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", detail)
+		return
 	}
-	writeProblem(w, r, http.StatusBadRequest, "invalid_request", detail)
+	writeProblem(w, r, http.StatusBadRequest, "invalid_request", "invalid request parameters")
 }
