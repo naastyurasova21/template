@@ -9,6 +9,7 @@ import (
 
 	"github.com/naastyurasova21/template/internal/config"
 	"github.com/naastyurasova21/template/internal/db"
+	"github.com/naastyurasova21/template/internal/handler"
 	"github.com/naastyurasova21/template/internal/httpserver"
 	"github.com/naastyurasova21/template/internal/repository"
 	"github.com/naastyurasova21/template/internal/txmanager"
@@ -35,8 +36,9 @@ func main() {
 	logger.Info("database connected")
 	tripRepo := repository.NewTripRepository(pool, cfg.DatabaseQueryTimeout)
 	txManager := txmanager.New(pool)
-	_, _ = tripRepo, txManager
-	srv := httpserver.New(cfg.HTTPAddr, pool, logger)
+	h := handler.New(tripRepo, txManager, pool, logger)
+
+	srv := httpserver.New(cfg.HTTPAddr, h, logger)
 
 	srvErr := make(chan error, 1)
 	go func() {

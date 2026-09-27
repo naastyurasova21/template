@@ -2,14 +2,15 @@ package httpserver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/naastyurasova21/template/api"
+	"github.com/naastyurasova21/template/internal/handler"
 )
 
 const (
@@ -17,43 +18,26 @@ const (
 	readHeaderTimeout = 5 * time.Second
 	writeTimeout      = 10 * time.Second
 	idleTimeout       = 60 * time.Second
-	readyTimeout      = 2 * time.Second
 )
 
 type Server struct {
 	httpServer *http.Server
-	pool       *pgxpool.Pool
 	logger     *slog.Logger
 }
 
-type HealthResponse struct {
-	Status string `json:"status"`
-}
-
-func New(addr string, pool *pgxpool.Pool, logger *slog.Logger) *Server {
+func New(addr string, h *handler.Handler, logger *slog.Logger) *Server {
 	router := chi.NewRouter()
 
-	router.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
-	})
-
-	router.Get("/ready", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), readyTimeout)
-		defer cancel()
-
-		if err := pool.Ping(ctx); err != nil {
-			writeJSON(w, http.StatusServiceUnavailable, HealthResponse{Status: "unavailable"})
-			return
-		}
-		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+	apiHandler := api.HandlerWithOptions(h, api.ChiServerOptions{
+		BaseRouter:       router,
+		ErrorHandlerFunc: handler.ErrorHandler,
 	})
 
 	return &Server{
-		pool:   pool,
 		logger: logger,
 		httpServer: &http.Server{
 			Addr:              addr,
-			Handler:           router,
+			Handler:           apiHandler,
 			ReadTimeout:       readTimeout,
 			ReadHeaderTimeout: readHeaderTimeout,
 			WriteTimeout:      writeTimeout,
@@ -73,10 +57,4 @@ func (s *Server) Start() error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }
