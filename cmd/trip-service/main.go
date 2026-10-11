@@ -36,7 +36,7 @@ func main() {
 	logger.Info("database connected")
 	tripRepo := repository.NewTripRepository(pool, cfg.DatabaseQueryTimeout)
 	txManager := txmanager.New(pool)
-	h := handler.New(tripRepo, txManager, pool, logger)
+	h := handler.New(tripRepo, txManager, pool, logger, cfg.DatabaseQueryTimeout)
 
 	srv := httpserver.New(cfg.HTTPAddr, h, logger)
 

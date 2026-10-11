@@ -18,10 +18,11 @@ import (
 )
 
 type Handler struct {
-	tripRepo  *repository.TripRepository
-	txManager txmanager.TxManager
-	pool      *pgxpool.Pool
-	logger    *slog.Logger
+	tripRepo     *repository.TripRepository
+	txManager    txmanager.TxManager
+	pool         *pgxpool.Pool
+	logger       *slog.Logger
+	queryTimeout time.Duration
 }
 
 func New(
@@ -29,12 +30,14 @@ func New(
 	txManager txmanager.TxManager,
 	pool *pgxpool.Pool,
 	logger *slog.Logger,
+	queryTimeout time.Duration,
 ) *Handler {
 	return &Handler{
-		tripRepo:  tripRepo,
-		txManager: txManager,
-		pool:      pool,
-		logger:    logger,
+		tripRepo:     tripRepo,
+		txManager:    txManager,
+		pool:         pool,
+		logger:       logger,
+		queryTimeout: queryTimeout,
 	}
 }
 
@@ -43,7 +46,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), h.queryTimeout)
 	defer cancel()
 
 	if err := h.pool.Ping(ctx); err != nil {
@@ -53,20 +56,70 @@ func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, api.HealthResponse{Status: api.Ok})
 }
 
-func (h *Handler) CreateTrip(w http.ResponseWriter, r *http.Request, params api.CreateTripParams) {
-	// params.IdempotencyKey — для задания со звёздочкой
+type createTripRequest struct {
+	UserID     *uuid.UUID       `json:"user_id"`
+	DriverID   *uuid.UUID       `json:"driver_id"`
+	StartPoint *api.Coordinates `json:"start_point"`
+	EndPoint   *api.Coordinates `json:"end_point"`
+	Price      *int64           `json:"price"`
+}
 
-	var data api.TripData
+func (h *Handler) CreateTrip(w http.ResponseWriter, r *http.Request, params api.CreateTripParams) {
+	// params.IdempotencyKey — для задания со звёздочкой.
+
+	var req createTripRequest
 	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields() // additionalProperties: false
-	if err := dec.Decode(&data); err != nil {
-		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "invalid JSON body: "+err.Error())
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
+		h.logger.Warn("decode create trip request failed", "err", err)
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "invalid JSON body")
+		return
+	}
+	if dec.More() {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "unexpected data after JSON body")
 		return
 	}
 
-	if err := validateTripData(data); err != nil {
+	if req.UserID == nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "user_id is required")
+		return
+	}
+	if req.DriverID == nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "driver_id is required")
+		return
+	}
+	if req.StartPoint == nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "start_point is required")
+		return
+	}
+	if req.EndPoint == nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "end_point is required")
+		return
+	}
+	if req.Price == nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "price is required")
+		return
+	}
+
+	if err := validateCoordinates("start_point", *req.StartPoint); err != nil {
 		writeProblem(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 		return
+	}
+	if err := validateCoordinates("end_point", *req.EndPoint); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if *req.Price < 0 {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "price must be >= 0")
+		return
+	}
+
+	data := api.TripData{
+		UserId:     *req.UserID,
+		DriverId:   *req.DriverID,
+		StartPoint: *req.StartPoint,
+		EndPoint:   *req.EndPoint,
+		Price:      *req.Price,
 	}
 
 	var trip *api.Trip
@@ -141,24 +194,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
-}
-func validateTripData(data api.TripData) error {
-	if data.UserId == uuid.Nil {
-		return errors.New("user_id is required")
-	}
-	if data.DriverId == uuid.Nil {
-		return errors.New("driver_id is required")
-	}
-	if err := validateCoordinates("start_point", data.StartPoint); err != nil {
-		return err
-	}
-	if err := validateCoordinates("end_point", data.EndPoint); err != nil {
-		return err
-	}
-	if data.Price < 0 {
-		return errors.New("price must be >= 0")
-	}
-	return nil
 }
 
 func validateCoordinates(field string, c api.Coordinates) error {

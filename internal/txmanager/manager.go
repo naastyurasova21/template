@@ -3,6 +3,7 @@ package txmanager
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,6 +23,8 @@ func New(pool *pgxpool.Pool) TxManager {
 	return &manager{pool: pool}
 }
 
+const rollbackTimeout = 5 * time.Second
+
 func (m *manager) Do(ctx context.Context, fn func(ctx context.Context) error) error {
 	if _, ok := db.TxFromContext(ctx); ok {
 		return fn(ctx)
@@ -34,13 +37,12 @@ func (m *manager) Do(ctx context.Context, fn func(ctx context.Context) error) er
 		return fmt.Errorf("begin tx: %w", err)
 	}
 
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
+	rollbackCtx, cancelRollback := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+	defer cancelRollback()
 
 	defer func() {
 		if p := recover(); p != nil {
-			_ = tx.Rollback(ctx)
+			_ = tx.Rollback(rollbackCtx)
 			panic(p)
 		}
 	}()
@@ -48,6 +50,7 @@ func (m *manager) Do(ctx context.Context, fn func(ctx context.Context) error) er
 	txCtx := db.WithTx(ctx, tx)
 
 	if err := fn(txCtx); err != nil {
+		_ = tx.Rollback(rollbackCtx)
 		return err
 	}
 
