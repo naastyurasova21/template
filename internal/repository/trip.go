@@ -122,7 +122,6 @@ func (r *TripRepository) Finish(ctx context.Context, id uuid.UUID) (*api.Trip, e
 	exec := db.ExecutorFromContext(ctx, r.pool)
 	now := time.Now().UTC()
 
-	// UPDATE trips
 	updateTrip, argsUpdate, err := sq.Update("trips").
 		Set("status", api.Completed).
 		Set("finished_at", now).
@@ -140,14 +139,12 @@ func (r *TripRepository) Finish(ctx context.Context, id uuid.UUID) (*api.Trip, e
 	}
 
 	if res.RowsAffected() == 0 {
-		// Либо поездки нет, либо уже завершена
 		if _, err := r.GetByID(ctx, id); err != nil {
-			return nil, err // ErrTripNotFound
+			return nil, err 
 		}
 		return nil, ErrTripAlreadyCompleted
 	}
 
-	// INSERT trip_status_history
 	insertHistory, argsHistory, err := sq.Insert("trip_status_history").
 		Columns("trip_id", "from_status", "to_status", "reason", "changed_at").
 		Values(id, api.Active, api.Completed, "trip finished", now).
