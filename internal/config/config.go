@@ -21,11 +21,16 @@ type Config struct {
 	DatabaseMaxConnLifetime time.Duration
 	DatabaseConnectTimeout  time.Duration
 	DatabaseQueryTimeout    time.Duration
+	ServiceVersion          string
+	OTELExporterOTLPEndpoint string
+	OTELExporterOTLPProtocol string
+	OTELServiceName          string
+	OTELResourceAttributes   string
+	OTELTracesSampler        string
 }
 
 func Load() (Config, error) {
-	// Загружаем .env, если он существует.
-	// Уже установленные переменные окружения имеют приоритет.
+
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
 		return Config{}, fmt.Errorf("load .env: %w", err)
 	}
@@ -129,6 +134,37 @@ func Load() (Config, error) {
 		)
 	}
 	cfg.DatabaseQueryTimeout = queryTimeout
+	cfg.ServiceVersion = os.Getenv("SERVICE_VERSION")
+	if cfg.ServiceVersion == "" {
+		cfg.ServiceVersion = "dev"
+	}
+
+	cfg.OTELServiceName = os.Getenv("OTEL_SERVICE_NAME")
+	if cfg.OTELServiceName == "" {
+		cfg.OTELServiceName = "trip-service"
+	}
+
+	cfg.OTELExporterOTLPEndpoint = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+
+	cfg.OTELExporterOTLPProtocol = os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL")
+	if cfg.OTELExporterOTLPProtocol == "" {
+		cfg.OTELExporterOTLPProtocol = "http/protobuf"
+	}
+	switch cfg.OTELExporterOTLPProtocol {
+	case "http/protobuf", "grpc":
+	default:
+		return Config{}, fmt.Errorf(
+			"invalid OTEL_EXPORTER_OTLP_PROTOCOL %q: must be http/protobuf or grpc",
+			cfg.OTELExporterOTLPProtocol,
+		)
+	}
+
+	cfg.OTELResourceAttributes = os.Getenv("OTEL_RESOURCE_ATTRIBUTES")
+
+	cfg.OTELTracesSampler = os.Getenv("OTEL_TRACES_SAMPLER")
+	if cfg.OTELTracesSampler == "" {
+		cfg.OTELTracesSampler = "parentbased_always_on"
+	}
 
 	return cfg, nil
 }
