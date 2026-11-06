@@ -84,18 +84,41 @@ func (h *Handler) CreateTrip(w http.ResponseWriter, r *http.Request, params api.
 		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "user_id is required")
 		return
 	}
+	if *req.UserID == uuid.Nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "user_id must be a valid UUID")
+		return
+	}
+
 	if req.DriverID == nil {
 		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "driver_id is required")
 		return
 	}
+
+	if *req.DriverID == uuid.Nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "driver_id must be a valid UUID")
+		return
+	}
+
 	if req.StartPoint == nil {
 		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "start_point is required")
 		return
 	}
+
+	if *req.StartPoint == (api.Coordinates{}) {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "start_point is required")
+		return
+	}
+
 	if req.EndPoint == nil {
 		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "end_point is required")
 		return
 	}
+	
+	if *req.EndPoint == (api.Coordinates{}) {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "end_point is required")
+		return
+	}
+
 	if req.Price == nil {
 		writeProblem(w, r, http.StatusBadRequest, "invalid_request", "price is required")
 		return

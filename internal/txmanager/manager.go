@@ -25,6 +25,10 @@ func New(pool *pgxpool.Pool) TxManager {
 
 const rollbackTimeout = 5 * time.Second
 
+func rollbackContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+}
+
 func (m *manager) Do(ctx context.Context, fn func(ctx context.Context) error) error {
 	if _, ok := db.TxFromContext(ctx); ok {
 		return fn(ctx)
@@ -36,13 +40,11 @@ func (m *manager) Do(ctx context.Context, fn func(ctx context.Context) error) er
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-
-	rollbackCtx, cancelRollback := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
-	defer cancelRollback()
-
-	defer func() {
+		defer func() {
 		if p := recover(); p != nil {
-			_ = tx.Rollback(rollbackCtx)
+			rCtx, cancel := rollbackContext(ctx)
+			defer cancel()
+			_ = tx.Rollback(rCtx)
 			panic(p)
 		}
 	}()
@@ -50,10 +52,12 @@ func (m *manager) Do(ctx context.Context, fn func(ctx context.Context) error) er
 	txCtx := db.WithTx(ctx, tx)
 
 	if err := fn(txCtx); err != nil {
-		_ = tx.Rollback(rollbackCtx)
+		rCtx, cancel := rollbackContext(ctx)
+		defer cancel()
+		_ = tx.Rollback(rCtx)
 		return err
 	}
-
+	
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
 	}
