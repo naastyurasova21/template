@@ -10,10 +10,16 @@ import (
 	"github.com/naastyurasova21/template/internal/model"
 )
 
-type TripRepository interface {
-	Finish(ctx context.Context, id uuid.UUID) (*model.Trip, error)
-}
+type (
+	TripRepository interface {
+		Finish(ctx context.Context, id uuid.UUID) (*model.Trip, error)
+	}
 
-type TxManager interface {
-	Do(ctx context.Context, fn func(ctx context.Context) error) error
-}
+	TxManager interface {
+		Do(ctx context.Context, fn func(ctx context.Context) error) error
+	}
+
+	Metrics interface {
+		IncCompleted(ctx context.Context)
+	}
+)

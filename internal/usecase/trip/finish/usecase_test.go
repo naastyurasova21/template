@@ -19,7 +19,8 @@ func TestExecute_Success(t *testing.T) {
 
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
-	uc := finish.New(mockRepo, mockTx)
+	mockMetrics := NewMockMetrics(ctrl)
+	uc := finish.New(mockRepo, mockTx, mockMetrics)
 
 	id := uuid.New()
 	expected := &model.Trip{ID: id, Status: string(trip.StatusCompleted)}
@@ -28,7 +29,7 @@ func TestExecute_Success(t *testing.T) {
 		func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) },
 	)
 	mockRepo.EXPECT().Finish(gomock.Any(), id).Return(expected, nil)
-
+    mockMetrics.EXPECT().IncCompleted(gomock.Any())
 	got, err := uc.Execute(context.Background(), id)
 	if err != nil {
 		t.Fatalf("Execute: unexpected error: %v", err)
@@ -44,7 +45,8 @@ func TestExecute_AlreadyCompleted(t *testing.T) {
 
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
-	uc := finish.New(mockRepo, mockTx)
+	mockMetrics := NewMockMetrics(ctrl)
+	uc := finish.New(mockRepo, mockTx, mockMetrics)
 
 	id := uuid.New()
 
@@ -65,7 +67,8 @@ func TestExecute_NotFound(t *testing.T) {
 
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
-	uc := finish.New(mockRepo, mockTx)
+	mockMetrics := NewMockMetrics(ctrl)
+	uc := finish.New(mockRepo, mockTx, mockMetrics)
 
 	id := uuid.New()
 

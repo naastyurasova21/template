@@ -20,6 +20,7 @@ import (
 	tripget "github.com/naastyurasova21/template/internal/http/trip/get"
 	"github.com/naastyurasova21/template/internal/http/service"
 	"github.com/naastyurasova21/template/internal/infra/postgres/transaction"
+	"github.com/naastyurasova21/template/internal/infra/telemetry"
 	"github.com/naastyurasova21/template/internal/repository/trip"
 	usecasecreate "github.com/naastyurasova21/template/internal/usecase/trip/create"
 	usecasefinish "github.com/naastyurasova21/template/internal/usecase/trip/finish"
@@ -36,14 +37,18 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Containe
 	if err != nil {
 		return nil, fmt.Errorf("init db pool: %w", err)
 	}
+	appMetrics, err := telemetry.NewMetrics()
+	if err != nil {
+		return nil, fmt.Errorf("init metrics: %w", err)
+	}
 
 	txManager := transaction.New(pool)
 
 	tripRepo := trip.New(pool, cfg.DatabaseQueryTimeout)
 
-	createUC := usecasecreate.New(tripRepo, txManager)
+	createUC := usecasecreate.New(tripRepo, txManager, appMetrics)
 	getUC := usecaseget.New(tripRepo)
-	finishUC := usecasefinish.New(tripRepo, txManager)
+	finishUC := usecasefinish.New(tripRepo, txManager, appMetrics)
 
 	createHandler := tripcreate.New(createUC, logger)
 	getHandler := tripget.New(getUC, logger)

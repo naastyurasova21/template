@@ -19,8 +19,9 @@ func TestExecute_Success(t *testing.T) {
 
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
+	mockMetrics := NewMockMetrics(ctrl)
 
-	uc := create.New(mockRepo, mockTx)
+	uc := create.New(mockRepo, mockTx, mockMetrics)
 
 	in := create.Input{
 		UserID:   uuid.New(),
@@ -54,7 +55,8 @@ func TestExecute_Success(t *testing.T) {
 			m.ID = uuid.New()
 			return &m, nil
 		})
-
+    mockMetrics.EXPECT().IncCreated(gomock.Any())
+	
 	saved, err := uc.Execute(context.Background(), in)
 	if err != nil {
 		t.Fatalf("Execute: unexpected error: %v", err)
@@ -73,8 +75,8 @@ func TestExecute_ValidationError(t *testing.T) {
 
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
-
-	uc := create.New(mockRepo, mockTx)
+    mockMetrics := NewMockMetrics(ctrl)
+	uc := create.New(mockRepo, mockTx, mockMetrics)
 
 	in := create.Input{
 		UserID:   uuid.Nil,
@@ -102,8 +104,8 @@ func TestExecute_RepoError(t *testing.T) {
 
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
-
-	uc := create.New(mockRepo, mockTx)
+    mockMetrics := NewMockMetrics(ctrl)
+	uc := create.New(mockRepo, mockTx, mockMetrics)
 
 	in := create.Input{
 		UserID:   uuid.New(),

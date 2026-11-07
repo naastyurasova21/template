@@ -16,4 +16,9 @@ type (
 	TxManager interface {
 		Do(ctx context.Context, fn func(ctx context.Context) error) error
 	}
+	
+	Metrics interface {
+	IncCreated(ctx context.Context)
+    }
 )
+

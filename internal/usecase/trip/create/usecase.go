@@ -13,10 +13,11 @@ import (
 type Usecase struct {
 	repo TripRepository
 	tx   TxManager
+	metrics Metrics
 }
 
-func New(repo TripRepository, tx TxManager) *Usecase {
-	return &Usecase{repo: repo, tx: tx}
+func New(repo TripRepository, tx TxManager, metrics Metrics) *Usecase {
+	return &Usecase{repo: repo, tx: tx, metrics: metrics}
 }
 
 type Input struct {
@@ -53,6 +54,8 @@ func (u *Usecase) Execute(ctx context.Context, in Input) (*model.Trip, error) {
 	if err != nil {
 		return nil, err
 	}
+	
+	u.metrics.IncCreated(ctx)
 
 	return saved, nil
 }
