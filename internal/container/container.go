@@ -14,6 +14,7 @@ import (
 	"github.com/naastyurasova21/template/internal/config"
 	"github.com/naastyurasova21/template/internal/db"
 	"github.com/naastyurasova21/template/internal/http/domainerror"
+	appMiddleware "github.com/naastyurasova21/template/internal/http/middleware"
 	tripcreate "github.com/naastyurasova21/template/internal/http/trip/create"
 	tripfinish "github.com/naastyurasova21/template/internal/http/trip/finish"
 	tripget "github.com/naastyurasova21/template/internal/http/trip/get"
@@ -57,10 +58,16 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Containe
 	}
 
 	router := chi.NewRouter()
+    router.Use(
+	appMiddleware.Tracing(),
+	appMiddleware.Logging(logger),
+)
+
 	apiHandler := api.HandlerWithOptions(serverImpl, api.ChiServerOptions{
 		BaseRouter:       router,
 		ErrorHandlerFunc: domainerror.ErrorHandler,
 	})
+
 
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
