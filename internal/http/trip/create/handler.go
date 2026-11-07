@@ -50,6 +50,9 @@ func (h *Handler) CreateTrip(w http.ResponseWriter, r *http.Request, _ api.Creat
 	})
 	if err != nil {
 		status, problem := domainerror.Problem(err)
+		if status >= http.StatusInternalServerError {
+			h.logger.Error("create trip failed", "err", err)
+		}
 		writeJSON(w, status, problem)
 		return
 	}

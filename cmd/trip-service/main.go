@@ -3,16 +3,13 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http" 
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/naastyurasova21/template/internal/config"
-	"github.com/naastyurasova21/template/internal/db"
-	"github.com/naastyurasova21/template/internal/handler"
-	"github.com/naastyurasova21/template/internal/httpserver"
-	"github.com/naastyurasova21/template/internal/repository"
-	"github.com/naastyurasova21/template/internal/txmanager"
+	"github.com/naastyurasova21/template/internal/container"
 )
 
 func main() {
@@ -27,22 +24,19 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := db.NewPool(ctx, cfg)
+	c, err := container.New(ctx, cfg, logger)
 	if err != nil {
-		logger.Error("database connection failed", "err", err)
+		logger.Error("container init failed", "err", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
-	logger.Info("database connected")
-	tripRepo := repository.NewTripRepository(pool, cfg.DatabaseQueryTimeout)
-	txManager := txmanager.New(pool)
-	h := handler.New(tripRepo, txManager, pool, logger, cfg.DatabaseQueryTimeout)
-
-	srv := httpserver.New(cfg.HTTPAddr, h, logger)
+	defer c.Pool.Close()
 
 	srvErr := make(chan error, 1)
 	go func() {
-		srvErr <- srv.Start()
+		logger.Info("http server starting", "addr", c.Server.Addr)
+		if err := c.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			srvErr <- err
+		}
 	}()
 
 	select {
@@ -56,7 +50,7 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	if err := c.Server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("http server shutdown failed", "err", err)
 		os.Exit(1)
 	}

@@ -3,6 +3,7 @@ package finish
 import (
 	"context"
 	"encoding/json"
+	"log/slog" 
 	"net/http"
 
 	"github.com/google/uuid"
@@ -18,16 +19,20 @@ type Usecase interface {
 
 type Handler struct {
 	uc Usecase
+	logger *slog.Logger
 }
 
-func New(uc Usecase) *Handler {
-	return &Handler{uc: uc}
+func New(uc Usecase, logger *slog.Logger) *Handler {
+	return &Handler{uc: uc, logger: logger}
 }
 
 func (h *Handler) FinishTrip(w http.ResponseWriter, r *http.Request, tripId api.TripId) {
 	trip, err := h.uc.Execute(r.Context(), tripId)
 	if err != nil {
 		status, problem := domainerror.Problem(err)
+		if status >= http.StatusInternalServerError {
+			h.logger.Error("finish trip failed", "err", err)
+		}
 		writeJSON(w, status, problem)
 		return
 	}

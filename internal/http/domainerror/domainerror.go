@@ -3,6 +3,7 @@ package domainerror
 import (
 	"errors"
 	"net/http"
+	"encoding/json"
 
 	"github.com/naastyurasova21/template/api"
 	"github.com/naastyurasova21/template/internal/domain/trip"
@@ -49,4 +50,23 @@ func newProblem(status int, code, detail string) api.Problem {
 		Detail: &detail,
 		Code:   code,
 	}
+}
+
+func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
+	var paramErr *api.InvalidParamFormatError
+	if errors.As(err, &paramErr) {
+		detail := "invalid parameter format"
+		if paramErr.ParamName == "tripId" {
+			detail = "invalid UUID format"
+		}
+		status, problem := http.StatusBadRequest, newProblem(http.StatusBadRequest, "invalid_request", detail)
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(problem)
+		return
+	}
+	status, problem := http.StatusBadRequest, newProblem(http.StatusBadRequest, "invalid_request", "invalid request parameters")
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(problem)
 }
