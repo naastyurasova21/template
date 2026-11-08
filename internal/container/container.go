@@ -63,16 +63,17 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Containe
 	}
 
 	router := chi.NewRouter()
-    router.Use(
-	appMiddleware.Tracing(),
-	appMiddleware.Logging(logger),
-)
+	router.Use(
+		appMiddleware.Recover(logger),
+		appMiddleware.Tracing(),
+		appMiddleware.Logging(logger),
+		appMiddleware.Metrics(),
+	)
 
 	apiHandler := api.HandlerWithOptions(serverImpl, api.ChiServerOptions{
 		BaseRouter:       router,
 		ErrorHandlerFunc: domainerror.ErrorHandler,
 	})
-
 
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
