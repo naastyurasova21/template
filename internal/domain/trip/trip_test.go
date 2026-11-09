@@ -41,13 +41,13 @@ func TestNew_Validation(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name                string
-		user                uuid.UUID
-		driver              uuid.UUID
-		startLat, startLon  float64
-		endLat, endLon      float64
-		price               int64
-		wantField           string
+		name               string
+		user               uuid.UUID
+		driver             uuid.UUID
+		startLat, startLon float64
+		endLat, endLon     float64
+		price              int64
+		wantField          string
 	}{
 		{"empty user", uuid.Nil, driverID, 0, 0, 0, 0, 0, "user_id"},
 		{"empty driver", userID, uuid.Nil, 0, 0, 0, 0, 0, "driver_id"},

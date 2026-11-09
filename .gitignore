@@ -6,3 +6,6 @@
 bin/
 
 .DS_Store
+# Линтер
+golangci-lint-*.tar.gz
+golangci-lint-*-linux-amd64/

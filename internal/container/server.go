@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/naastyurasova21/template/api"
+	"github.com/naastyurasova21/template/internal/http/service"
 	tripcreate "github.com/naastyurasova21/template/internal/http/trip/create"
 	tripfinish "github.com/naastyurasova21/template/internal/http/trip/finish"
 	tripget "github.com/naastyurasova21/template/internal/http/trip/get"
-	"github.com/naastyurasova21/template/internal/http/service"
 )
 
 type serverImpl struct {

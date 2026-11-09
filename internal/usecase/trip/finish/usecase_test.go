@@ -29,7 +29,7 @@ func TestExecute_Success(t *testing.T) {
 		func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) },
 	)
 	mockRepo.EXPECT().Finish(gomock.Any(), id).Return(expected, nil)
-    mockMetrics.EXPECT().IncCompleted(gomock.Any())
+	mockMetrics.EXPECT().IncCompleted(gomock.Any())
 	got, err := uc.Execute(context.Background(), id)
 	if err != nil {
 		t.Fatalf("Execute: unexpected error: %v", err)

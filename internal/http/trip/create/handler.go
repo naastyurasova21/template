@@ -71,7 +71,7 @@ func writeProblem(w http.ResponseWriter, status int, detail string) {
 	writeJSON(w, status, api.Problem{
 		Type:   "https://tripgo.example/problems/invalid-request",
 		Title:  "Invalid request",
-		Status: int32(status),
+		Status: int32(status), //nolint:gosec // HTTP status codes are always within int32
 		Detail: &detail,
 		Code:   "invalid_request",
 	})

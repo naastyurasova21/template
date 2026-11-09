@@ -1,9 +1,9 @@
 package domainerror
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
-	"encoding/json"
 
 	"github.com/naastyurasova21/template/api"
 	"github.com/naastyurasova21/template/internal/domain/trip"
@@ -46,13 +46,13 @@ func newProblem(status int, code, detail string) api.Problem {
 	return api.Problem{
 		Type:   "https://tripgo.example/problems/" + slug,
 		Title:  title,
-		Status: int32(status),
+		Status: int32(status), //nolint:gosec // HTTP status codes are always within int32
 		Detail: &detail,
 		Code:   code,
 	}
 }
 
-func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
+func ErrorHandler(w http.ResponseWriter, _ *http.Request, err error) {
 	var paramErr *api.InvalidParamFormatError
 	if errors.As(err, &paramErr) {
 		detail := "invalid parameter format"

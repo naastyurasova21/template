@@ -9,8 +9,8 @@ import (
 )
 
 type Usecase struct {
-	repo TripRepository
-	tx   TxManager
+	repo    TripRepository
+	tx      TxManager
 	metrics Metrics
 }
 
@@ -29,7 +29,7 @@ func (u *Usecase) Execute(ctx context.Context, id uuid.UUID) (*model.Trip, error
 	if err != nil {
 		return nil, err
 	}
-	
+
 	u.metrics.IncCompleted(ctx)
 
 	return finished, nil

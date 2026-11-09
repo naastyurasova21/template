@@ -3,7 +3,7 @@ package finish
 import (
 	"context"
 	"encoding/json"
-	"log/slog" 
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -18,7 +18,7 @@ type Usecase interface {
 }
 
 type Handler struct {
-	uc Usecase
+	uc     Usecase
 	logger *slog.Logger
 }
 

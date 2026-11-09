@@ -11,8 +11,8 @@ import (
 )
 
 type Usecase struct {
-	repo TripRepository
-	tx   TxManager
+	repo    TripRepository
+	tx      TxManager
 	metrics Metrics
 }
 
@@ -21,13 +21,13 @@ func New(repo TripRepository, tx TxManager, metrics Metrics) *Usecase {
 }
 
 type Input struct {
-	UserID    uuid.UUID
-	DriverID  uuid.UUID
-	StartLat  float64
-	StartLon  float64
-	EndLat    float64
-	EndLon    float64
-	Price     int64
+	UserID   uuid.UUID
+	DriverID uuid.UUID
+	StartLat float64
+	StartLon float64
+	EndLat   float64
+	EndLon   float64
+	Price    int64
 }
 
 func (u *Usecase) Execute(ctx context.Context, in Input) (*model.Trip, error) {
@@ -54,7 +54,7 @@ func (u *Usecase) Execute(ctx context.Context, in Input) (*model.Trip, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	u.metrics.IncCreated(ctx)
 
 	return saved, nil

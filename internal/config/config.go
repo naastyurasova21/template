@@ -15,13 +15,13 @@ type Config struct {
 	LogLevel        string
 	ShutdownTimeout time.Duration
 
-	DatabaseURL             string
-	DatabaseMaxConns        int32
-	DatabaseMinConns        int32
-	DatabaseMaxConnLifetime time.Duration
-	DatabaseConnectTimeout  time.Duration
-	DatabaseQueryTimeout    time.Duration
-	ServiceVersion          string
+	DatabaseURL              string
+	DatabaseMaxConns         int32
+	DatabaseMinConns         int32
+	DatabaseMaxConnLifetime  time.Duration
+	DatabaseConnectTimeout   time.Duration
+	DatabaseQueryTimeout     time.Duration
+	ServiceVersion           string
 	OTELExporterOTLPEndpoint string
 	OTELExporterOTLPProtocol string
 	OTELServiceName          string
@@ -30,7 +30,6 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
 		return Config{}, fmt.Errorf("load .env: %w", err)
 	}
@@ -76,7 +75,7 @@ func Load() (Config, error) {
 	if maxConns <= 0 {
 		return Config{}, fmt.Errorf("DATABASE_MAX_CONNS must be greater than 0")
 	}
-	cfg.DatabaseMaxConns = int32(maxConns)
+	cfg.DatabaseMaxConns = int32(maxConns) //nolint:gosec // maxConns is validated to be > 0 and fits in int32
 
 	minConns, err := strconv.Atoi(os.Getenv("DATABASE_MIN_CONNS"))
 	if err != nil {
@@ -85,7 +84,7 @@ func Load() (Config, error) {
 	if minConns < 0 {
 		return Config{}, fmt.Errorf("DATABASE_MIN_CONNS must be greater than or equal to 0")
 	}
-	cfg.DatabaseMinConns = int32(minConns)
+	cfg.DatabaseMinConns = int32(minConns) //nolint:gosec // minConns is validated to be >= 0 and fits in int32
 
 	if cfg.DatabaseMinConns > cfg.DatabaseMaxConns {
 		return Config{}, fmt.Errorf(

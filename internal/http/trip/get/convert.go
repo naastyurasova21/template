@@ -6,7 +6,7 @@ import (
 )
 
 func toAPITrip(t *model.Trip) api.Trip {
-	var finishedAt = t.FinishedAt
+	finishedAt := t.FinishedAt
 
 	return api.Trip{
 		Id:             t.ID,

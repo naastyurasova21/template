@@ -40,7 +40,7 @@ func (m *manager) Do(ctx context.Context, fn func(ctx context.Context) error) er
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-		defer func() {
+	defer func() {
 		if p := recover(); p != nil {
 			rCtx, cancel := rollbackContext(ctx)
 			defer cancel()
@@ -57,7 +57,7 @@ func (m *manager) Do(ctx context.Context, fn func(ctx context.Context) error) er
 		_ = tx.Rollback(rCtx)
 		return err
 	}
-	
+
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
 	}
