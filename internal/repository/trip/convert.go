@@ -1,4 +1,4 @@
-package repository
+package trip
 
 import (
 	"time"
@@ -6,10 +6,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/naastyurasova21/template/api"
+	"github.com/naastyurasova21/template/internal/model"
 )
 
-func scanTrip(row pgx.Row) (*api.Trip, error) {
+func scanTrip(row pgx.Row) (*model.Trip, error) {
 	var (
 		id         uuid.UUID
 		userId     uuid.UUID
@@ -35,15 +35,17 @@ func scanTrip(row pgx.Row) (*api.Trip, error) {
 		return nil, err
 	}
 
-	return &api.Trip{
-		Id:         id,
-		UserId:     userId,
-		DriverId:   driverId,
-		StartPoint: api.Coordinates{Latitude: startLat, Longitude: startLng},
-		EndPoint:   api.Coordinates{Latitude: endLat, Longitude: endLng},
-		Price:      price,
-		Status:     api.TripStatus(status),
-		StartedAt:  startedAt,
-		FinishedAt: finishedAt,
+	return &model.Trip{
+		ID:             id,
+		UserID:         userId,
+		DriverID:       driverId,
+		StartLatitude:  startLat,
+		StartLongitude: startLng,
+		EndLatitude:    endLat,
+		EndLongitude:   endLng,
+		Price:          price,
+		Status:         status,
+		StartedAt:      startedAt,
+		FinishedAt:     finishedAt,
 	}, nil
 }

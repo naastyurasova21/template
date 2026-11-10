@@ -2,80 +2,80 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/naastyurasova21/template/internal/config"
-	"github.com/naastyurasova21/template/internal/db"
-	"github.com/naastyurasova21/template/internal/handler"
-	"github.com/naastyurasova21/template/internal/httpserver"
-	"github.com/naastyurasova21/template/internal/repository"
-	"github.com/naastyurasova21/template/internal/txmanager"
+	"github.com/naastyurasova21/template/internal/container"
+	"github.com/naastyurasova21/template/internal/infra/telemetry"
 )
 
+const otelShutdownTimeout = 5 * time.Second
+
 func main() {
-	cfg, err := config.Load()
-	if err != nil {
-		slog.Error("config load failed", "err", err)
+	if err := run(); err != nil {
+		slog.Error("service failed", "err", err)
 		os.Exit(1)
 	}
+}
 
-	logger := newLogger(cfg.LogLevel)
+func run() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	logger := telemetry.NewLogger(cfg.LogLevel)
 	slog.SetDefault(logger)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := db.NewPool(ctx, cfg)
+	shutdownOtel, err := telemetry.Init(ctx, cfg)
 	if err != nil {
-		logger.Error("database connection failed", "err", err)
-		os.Exit(1)
+		return err
 	}
-	defer pool.Close()
-	logger.Info("database connected")
-	tripRepo := repository.NewTripRepository(pool, cfg.DatabaseQueryTimeout)
-	txManager := txmanager.New(pool)
-	h := handler.New(tripRepo, txManager, pool, logger, cfg.DatabaseQueryTimeout)
+	defer func() {
+		otelCtx, cancel := context.WithTimeout(context.Background(), otelShutdownTimeout)
+		defer cancel()
+		if err := shutdownOtel(otelCtx); err != nil {
+			logger.Error("otel shutdown failed", "err", err)
+		}
+	}()
 
-	srv := httpserver.New(cfg.HTTPAddr, h, logger)
+	c, err := container.New(ctx, cfg, logger)
+	if err != nil {
+		return err
+	}
+	defer c.Pool.Close()
 
 	srvErr := make(chan error, 1)
 	go func() {
-		srvErr <- srv.Start()
+		logger.Info("http server starting", "addr", c.Server.Addr)
+		if err := c.Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			srvErr <- err
+		}
 	}()
 
 	select {
 	case <-ctx.Done():
 		logger.Info("shutdown signal received")
 	case err := <-srvErr:
-		logger.Error("http server failed", "err", err)
-		os.Exit(1)
+		return err
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.Error("http server shutdown failed", "err", err)
-		os.Exit(1)
+	if err := c.Server.Shutdown(shutdownCtx); err != nil {
+		return err
 	}
-	logger.Info("server stopped")
-}
 
-func newLogger(level string) *slog.Logger {
-	var lvl slog.Level
-	switch level {
-	case "debug":
-		lvl = slog.LevelDebug
-	case "info":
-		lvl = slog.LevelInfo
-	case "warn":
-		lvl = slog.LevelWarn
-	case "error":
-		lvl = slog.LevelError
-	default:
-		lvl = slog.LevelInfo
-	}
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
+	logger.Info("server stopped")
+	return nil
 }
