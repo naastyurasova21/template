@@ -35,3 +35,9 @@ tidy:
 
 lint:
 	golangci-lint run
+
+test:
+	go test -race -cover ./internal/... ./cmd/...
+
+test-integration:
+	go test -tags=integration -race ./internal/repository/...

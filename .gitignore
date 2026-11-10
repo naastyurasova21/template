@@ -9,3 +9,8 @@ bin/
 # Линтер
 golangci-lint-*.tar.gz
 golangci-lint-*-linux-amd64/
+
+# Офлайн-пакеты
+*.deb
+deps.txt
+offline-debs/
