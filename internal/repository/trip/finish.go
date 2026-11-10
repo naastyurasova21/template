@@ -14,6 +14,8 @@ import (
 )
 
 func (r *Repo) Finish(ctx context.Context, id uuid.UUID) (*model.Trip, error) {
+	start := time.Now()
+	defer r.recordDBDuration(ctx, "UPDATE", start)
 	ctx, cancel := context.WithTimeout(ctx, r.queryTimeout)
 	defer cancel()
 

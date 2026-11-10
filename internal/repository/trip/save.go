@@ -17,6 +17,8 @@ import (
 const pgUniqueViolation = "23505"
 
 func (r *Repo) Save(ctx context.Context, t model.Trip) (*model.Trip, error) {
+	start := time.Now()
+	defer r.recordDBDuration(ctx, "INSERT", start)
 	ctx, cancel := context.WithTimeout(ctx, r.queryTimeout)
 	defer cancel()
 

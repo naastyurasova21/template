@@ -46,9 +46,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Containe
 
 	tripRepo := trip.New(pool, cfg.DatabaseQueryTimeout)
 
-	createUC := usecasecreate.New(tripRepo, txManager, appMetrics)
+	createUC := usecasecreate.New(tripRepo, txManager, appMetrics, logger)
 	getUC := usecaseget.New(tripRepo)
-	finishUC := usecasefinish.New(tripRepo, txManager, appMetrics)
+	finishUC := usecasefinish.New(tripRepo, txManager, appMetrics, logger)
 
 	createHandler := tripcreate.New(createUC, logger)
 	getHandler := tripget.New(getUC, logger)

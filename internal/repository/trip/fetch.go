@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -15,6 +16,8 @@ import (
 )
 
 func (r *Repo) GetByID(ctx context.Context, id uuid.UUID) (*model.Trip, error) {
+	start := time.Now()
+	defer r.recordDBDuration(ctx, "SELECT", start)
 	ctx, cancel := context.WithTimeout(ctx, r.queryTimeout)
 	defer cancel()
 

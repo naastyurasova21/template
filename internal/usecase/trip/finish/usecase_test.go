@@ -3,6 +3,8 @@ package finish_test
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/google/uuid"
@@ -20,7 +22,7 @@ func TestExecute_Success(t *testing.T) {
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
 	mockMetrics := NewMockMetrics(ctrl)
-	uc := finish.New(mockRepo, mockTx, mockMetrics)
+	uc := finish.New(mockRepo, mockTx, mockMetrics, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	id := uuid.New()
 	expected := &model.Trip{ID: id, Status: string(trip.StatusCompleted)}
@@ -46,7 +48,7 @@ func TestExecute_AlreadyCompleted(t *testing.T) {
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
 	mockMetrics := NewMockMetrics(ctrl)
-	uc := finish.New(mockRepo, mockTx, mockMetrics)
+	uc := finish.New(mockRepo, mockTx, mockMetrics, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	id := uuid.New()
 
@@ -68,7 +70,7 @@ func TestExecute_NotFound(t *testing.T) {
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
 	mockMetrics := NewMockMetrics(ctrl)
-	uc := finish.New(mockRepo, mockTx, mockMetrics)
+	uc := finish.New(mockRepo, mockTx, mockMetrics, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	id := uuid.New()
 

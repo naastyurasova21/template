@@ -1,21 +1,16 @@
 package create
+
 //go:generate go tool mockgen -source ${GOFILE} -destination mocks_test.go -package ${GOPACKAGE}_test
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
 	"github.com/naastyurasova21/template/api"
 	"github.com/naastyurasova21/template/internal/http/domainerror"
-	"github.com/naastyurasova21/template/internal/model"
 	"github.com/naastyurasova21/template/internal/usecase/trip/create"
 )
-
-type Usecase interface {
-	Execute(ctx context.Context, in create.Input) (*model.Trip, error)
-}
 
 type Handler struct {
 	uc     Usecase

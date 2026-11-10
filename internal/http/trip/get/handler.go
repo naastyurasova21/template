@@ -1,22 +1,15 @@
 package get
+
 //go:generate go tool mockgen -source ${GOFILE} -destination mocks_test.go -package ${GOPACKAGE}_test
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
-	"github.com/google/uuid"
-
 	"github.com/naastyurasova21/template/api"
 	"github.com/naastyurasova21/template/internal/http/domainerror"
-	"github.com/naastyurasova21/template/internal/model"
 )
-
-type Usecase interface {
-	Execute(ctx context.Context, id uuid.UUID) (*model.Trip, error)
-}
 
 type Handler struct {
 	uc     Usecase

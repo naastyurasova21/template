@@ -98,7 +98,6 @@ func TestRepo_TransactionRollback(t *testing.T) {
 	repo := repotrip.New(pool, 3*time.Second)
 	ctx := context.Background()
 
-
 	now := time.Now().UTC()
 	driverID := uuid.New()
 

@@ -12,10 +12,11 @@ type Usecase struct {
 	repo    TripRepository
 	tx      TxManager
 	metrics Metrics
+	logger  Logger
 }
 
-func New(repo TripRepository, tx TxManager, metrics Metrics) *Usecase {
-	return &Usecase{repo: repo, tx: tx, metrics: metrics}
+func New(repo TripRepository, tx TxManager, metrics Metrics, logger Logger) *Usecase {
+	return &Usecase{repo: repo, tx: tx, metrics: metrics, logger: logger}
 }
 
 func (u *Usecase) Execute(ctx context.Context, id uuid.UUID) (*model.Trip, error) {
@@ -31,6 +32,6 @@ func (u *Usecase) Execute(ctx context.Context, id uuid.UUID) (*model.Trip, error
 	}
 
 	u.metrics.IncCompleted(ctx)
-
+	u.logger.Info("trip completed", "trip_id", finished.ID.String())
 	return finished, nil
 }

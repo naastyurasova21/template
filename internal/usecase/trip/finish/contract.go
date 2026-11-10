@@ -22,4 +22,7 @@ type (
 	Metrics interface {
 		IncCompleted(ctx context.Context)
 	}
+	Logger interface {
+		Info(msg string, args ...any)
+	}
 )

@@ -20,4 +20,7 @@ type (
 	Metrics interface {
 		IncCreated(ctx context.Context)
 	}
+	Logger interface {
+		Info(msg string, args ...any)
+	}
 )

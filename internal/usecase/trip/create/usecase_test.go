@@ -3,6 +3,8 @@ package create_test
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/google/uuid"
@@ -21,7 +23,7 @@ func TestExecute_Success(t *testing.T) {
 	mockTx := NewMockTxManager(ctrl)
 	mockMetrics := NewMockMetrics(ctrl)
 
-	uc := create.New(mockRepo, mockTx, mockMetrics)
+	uc := create.New(mockRepo, mockTx, mockMetrics, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	in := create.Input{
 		UserID:   uuid.New(),
@@ -76,7 +78,7 @@ func TestExecute_ValidationError(t *testing.T) {
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
 	mockMetrics := NewMockMetrics(ctrl)
-	uc := create.New(mockRepo, mockTx, mockMetrics)
+	uc := create.New(mockRepo, mockTx, mockMetrics, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	in := create.Input{
 		UserID:   uuid.Nil,
@@ -105,7 +107,7 @@ func TestExecute_RepoError(t *testing.T) {
 	mockRepo := NewMockTripRepository(ctrl)
 	mockTx := NewMockTxManager(ctrl)
 	mockMetrics := NewMockMetrics(ctrl)
-	uc := create.New(mockRepo, mockTx, mockMetrics)
+	uc := create.New(mockRepo, mockTx, mockMetrics, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	in := create.Input{
 		UserID:   uuid.New(),
